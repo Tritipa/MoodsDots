@@ -4,6 +4,7 @@ struct TodayView: View {
     @EnvironmentObject private var viewModel: MoodViewModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingDatePicker = false
+    @State private var showingAchievementAlert = false
     
     var body: some View {
         ZStack {
@@ -35,6 +36,11 @@ struct TodayView: View {
                     }
                     .padding(.top, 8)
                     
+                    // Quick Stats Card
+                    if viewModel.userStats.totalEntries > 0 {
+                        QuickStatsCard(stats: viewModel.userStats)
+                    }
+                    
                     // Mood Selection
                     VStack(spacing: 16) {
                         Text("How are you feeling today?")
@@ -62,6 +68,95 @@ struct TodayView: View {
                                             .opacity(viewModel.selectedMood == mood ? 1 : 0.6)
                                             .animation(.easeInOut, value: viewModel.selectedMood)
                                     }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .shadow(color: .black.opacity(0.07), radius: 12, x: 0, y: 6)
+                    
+                    // Energy Level
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Energy Level")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        HStack(spacing: 12) {
+                            ForEach(EnergyLevel.allCases, id: \.self) { level in
+                                Button {
+                                    viewModel.selectedEnergyLevel = level
+                                } label: {
+                                    VStack(spacing: 4) {
+                                        Text(level.emoji)
+                                            .font(.title2)
+                                        Text(level.description)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(viewModel.selectedEnergyLevel == level ? Color.blue.opacity(0.2) : Color.clear)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .shadow(color: .black.opacity(0.07), radius: 12, x: 0, y: 6)
+                    
+                    // Sleep Hours
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Sleep Hours")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        HStack {
+                            Slider(value: $viewModel.sleepHours, in: 0...12, step: 0.5)
+                                .accentColor(.blue)
+                            Text("\(viewModel.sleepHours, specifier: "%.1f")h")
+                                .font(.headline)
+                                .foregroundColor(.blue)
+                                .frame(width: 50)
+                        }
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .shadow(color: .black.opacity(0.07), radius: 12, x: 0, y: 6)
+                    
+                    // Activities
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Activities Today")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                            ForEach(Activity.allCases, id: \.self) { activity in
+                                Button {
+                                    viewModel.toggleActivity(activity)
+                                } label: {
+                                    VStack(spacing: 4) {
+                                        Text(activity.rawValue)
+                                            .font(.title2)
+                                        Text(activity.name)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(height: 60)
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(viewModel.selectedActivities.contains(activity) ? Color.blue.opacity(0.2) : Color.clear)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(viewModel.selectedActivities.contains(activity) ? Color.blue : Color.gray.opacity(0.3), lineWidth: 1)
+                                            )
+                                    )
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -118,6 +213,71 @@ struct TodayView: View {
             .navigationTitle("")
             .navigationBarHidden(true)
         }
+        .onChange(of: viewModel.showingAchievement) { achievement in
+            if achievement != nil {
+                showingAchievementAlert = true
+            }
+        }
+        .alert("Achievement Unlocked! 🎉", isPresented: $showingAchievementAlert) {
+            Button("Awesome!") {
+                viewModel.showingAchievement = nil
+            }
+        } message: {
+            if let achievement = viewModel.showingAchievement {
+                Text("\(achievement.icon) \(achievement.title)\n\(achievement.description)")
+            }
+        }
+    }
+}
+
+struct QuickStatsCard: View {
+    let stats: UserStats
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Current Streak")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(stats.currentStreak) days")
+                        .font(.title2.bold())
+                        .foregroundColor(.blue)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Total Points")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(stats.totalPoints)")
+                        .font(.title2.bold())
+                        .foregroundColor(.purple)
+                }
+            }
+            
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Longest Streak")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(stats.longestStreak) days")
+                        .font(.title2.bold())
+                        .foregroundColor(.green)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Total Entries")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(stats.totalEntries)")
+                        .font(.title2.bold())
+                        .foregroundColor(.orange)
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.07), radius: 12, x: 0, y: 6)
     }
 }
 

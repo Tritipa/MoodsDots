@@ -29,6 +29,11 @@ struct ContentView: View {
                         Label("Analytics", systemImage: "chart.bar.xaxis")
                     }
                 
+                AchievementsView()
+                    .tabItem {
+                        Label("Achievements", systemImage: "trophy.fill")
+                    }
+                
                 SettingsView()
                     .tabItem {
                         Label("Settings", systemImage: "gear")

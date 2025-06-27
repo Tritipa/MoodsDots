@@ -50,6 +50,12 @@ struct HistoryView: View {
                     }
                     .padding(.horizontal)
                     
+                    // Month Stats
+                    let monthEntries = viewModel.entriesForMonth(selectedDate)
+                    if !monthEntries.isEmpty {
+                        MonthStatsView(entries: monthEntries)
+                    }
+                    
                     // Calendar grid
                     VStack {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
@@ -116,6 +122,65 @@ struct HistoryView: View {
     }
 }
 
+struct MonthStatsView: View {
+    let entries: [MoodEntry]
+    
+    private var moodCounts: [Mood: Int] {
+        Dictionary(grouping: entries, by: { $0.mood }).mapValues { $0.count }
+    }
+    
+    private var averageMood: Double {
+        guard !entries.isEmpty else { return 0 }
+        let total = entries.reduce(0) { $0 + $1.mood.points }
+        return Double(total) / Double(entries.count)
+    }
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Month Summary")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Entries")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(entries.count)")
+                        .font(.title2.bold())
+                        .foregroundColor(.blue)
+                }
+                Spacer()
+                VStack(alignment: .center, spacing: 4) {
+                    Text("Avg Mood")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(String(format: "%.1f", averageMood))
+                        .font(.title2.bold())
+                        .foregroundColor(.green)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Most Common")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    if let mostCommon = moodCounts.max(by: { $0.value < $1.value }) {
+                        Text(mostCommon.key.rawValue)
+                            .font(.title2)
+                    } else {
+                        Text("-")
+                            .font(.title2.bold())
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.07), radius: 12, x: 0, y: 6)
+    }
+}
+
 struct DayCell: View {
     let date: Date
     let entry: MoodEntry?
@@ -156,24 +221,113 @@ struct EntryDetailView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            VStack(spacing: 20) {
-                Text(entry.mood.rawValue)
-                    .font(.system(size: 60))
-                    .shadow(color: Color(entry.mood.color).opacity(0.18), radius: 8, x: 0, y: 4)
-                Text(entry.date.formatted(.dateTime.day().month().year()))
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-                if let comment = entry.comment {
-                    Text(comment)
-                        .font(.body)
-                        .multilineTextAlignment(.center)
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Mood Display
+                    VStack(spacing: 12) {
+                        Text(entry.mood.rawValue)
+                            .font(.system(size: 60))
+                            .shadow(color: Color(entry.mood.color).opacity(0.18), radius: 8, x: 0, y: 4)
+                        Text(entry.date.formatted(.dateTime.day().month().year().hour().minute()))
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // Activities
+                    if let activities = entry.activities, !activities.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Activities")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                                ForEach(activities, id: \.self) { activity in
+                                    VStack(spacing: 4) {
+                                        Text(activity.rawValue)
+                                            .font(.title2)
+                                        Text(activity.name)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 12)
+                                    .background(Color.blue.opacity(0.1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                        }
                         .padding()
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+                    }
+                    
+                    // Energy Level
+                    if let energyLevel = entry.energyLevel {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Energy Level")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            HStack {
+                                Text(energyLevel.emoji)
+                                    .font(.title)
+                                Text(energyLevel.description)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            .padding()
+                            .background(Color.orange.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .padding()
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+                    }
+                    
+                    // Sleep Hours
+                    if let sleepHours = entry.sleepHours {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Sleep Hours")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            HStack {
+                                Image(systemName: "bed.double.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.purple)
+                                Text("\(sleepHours, specifier: "%.1f") hours")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            .padding()
+                            .background(Color.purple.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .padding()
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+                    }
+                    
+                    // Comment
+                    if let comment = entry.comment, !comment.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Notes")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Text(comment)
+                                .font(.body)
+                                .multilineTextAlignment(.leading)
+                        }
+                        .padding()
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+                    }
                 }
-                Spacer()
+                .padding()
             }
-            .padding()
             .navigationTitle("Entry Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
